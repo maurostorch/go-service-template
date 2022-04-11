@@ -9,3 +9,4 @@ jobs:
         go-version: 1.18.x
     - uses: actions/checkout@v3
     - run: make all
+    - run: docker build -t app:1 .
