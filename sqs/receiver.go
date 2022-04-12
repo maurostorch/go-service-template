@@ -1,7 +1,9 @@
 package sqs
 
 import (
+	"context"
 	"os"
+	"sync"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -35,10 +37,22 @@ func NewReceiver(queueName string) Receiver {
 	}
 }
 
-func (r *Receiver) Start() chan *sqs.Message {
-	incoming := make(chan *sqs.Message, 10)
-	go r.receiveMessages(incoming)
-	return incoming
+func (r *Receiver) Start(ctx context.Context, handler MessageHandler, workers int) {
+	localCtx, cancel := context.WithCancel(ctx)
+	incoming := make(chan *sqs.Message, workers)
+	var wg sync.WaitGroup
+	for i := 1; i < workers; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			log.Debug("Starting ", id)
+			NewHandler(incoming, r.Client, r.QueueUrl, &handler).Start(localCtx)
+			log.Debug("Stopping ", id)
+		}(i)
+	}
+	r.receiveMessages(incoming)
+	cancel()
+	wg.Wait()
 }
 
 func (r *Receiver) receiveMessages(incoming chan *sqs.Message) {
@@ -51,7 +65,7 @@ func (r *Receiver) receiveMessages(incoming chan *sqs.Message) {
 
 		if err != nil {
 			log.Error("Error receiveing message ", err)
-			os.Exit(1)
+			return
 		}
 
 		for _, message := range msg.Messages {
