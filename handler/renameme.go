@@ -3,7 +3,7 @@ package handler
 import (
 	"fmt"
 
-	"github.com/Kooltra/go-service-template/sqs"
+	"github.com/maurostorch/go-service-template/sqs"
 )
 
 type Handler struct{}

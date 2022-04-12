@@ -5,9 +5,9 @@ import (
 	"os"
 	"sync"
 
-	"github.com/Kooltra/go-service-template/handler"
-	"github.com/Kooltra/go-service-template/sqs"
 	log "github.com/Sirupsen/logrus"
+	"github.com/maurostorch/go-service-template/handler"
+	"github.com/maurostorch/go-service-template/sqs"
 )
 
 func init() {
