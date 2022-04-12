@@ -5,7 +5,7 @@ clean:
 	rm ${BINARY_NAME}
 
 build:
-	GOOS=linux GOARCH=amd64 go build -o ${BINARY_NAME} main.go
+	GOARCH=amd64 go build -o ${BINARY_NAME} main.go
 
 run:
 	go run main.go
