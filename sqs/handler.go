@@ -11,11 +11,12 @@ type MessageHandler interface {
 	Handle(msg *Message)
 }
 type Handler interface {
-	Start()
+	Start(context.Context)
 }
 
 type handler struct {
-	ctx       context.Context
+	client    *sqs.SQS
+	queueUrl  *sqs.GetQueueUrlOutput
 	inChannel chan *sqs.Message
 	handler   *MessageHandler
 }
@@ -24,15 +25,16 @@ type Message struct {
 	body string
 }
 
-func NewHandler(context context.Context, inChannel chan *sqs.Message, msgHandler *MessageHandler) Handler {
+func NewHandler(inChannel chan *sqs.Message, client *sqs.SQS, queueUrl *sqs.GetQueueUrlOutput, msgHandler *MessageHandler) Handler {
 	return &handler{
-		ctx:       context,
+		client:    client,
+		queueUrl:  queueUrl,
 		inChannel: inChannel,
 		handler:   msgHandler,
 	}
 }
 
-func (h *handler) Start() {
+func (h *handler) Start(ctx context.Context) {
 	for {
 		select {
 		case m := <-h.inChannel:
@@ -42,7 +44,7 @@ func (h *handler) Start() {
 			} else {
 				log.Error("Error processing message ", err)
 			}
-		case <-h.ctx.Done():
+		case <-ctx.Done():
 			return
 		}
 	}
@@ -57,9 +59,8 @@ func (h *handler) handleMessage(msg *sqs.Message) error {
 }
 
 func (h *handler) deleteMessage(msg *sqs.Message) error {
-	sqsContext := h.ctx.Value(contextKey).(*SQSClient)
-	_, err := sqsContext.client.DeleteMessage(&sqs.DeleteMessageInput{
-		QueueUrl:      sqsContext.QueueUrl.QueueUrl,
+	_, err := h.client.DeleteMessage(&sqs.DeleteMessageInput{
+		QueueUrl:      h.queueUrl.QueueUrl,
 		ReceiptHandle: msg.ReceiptHandle,
 	})
 	if err != nil {
