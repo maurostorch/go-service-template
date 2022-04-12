@@ -33,12 +33,17 @@ func NewHandler(context context.Context, inChannel chan *sqs.Message, msgHandler
 }
 
 func (h *handler) Start() {
-	for m := range h.inChannel {
-		err := h.handleMessage(m)
-		if err == nil {
-			h.deleteMessage(m)
-		} else {
-			log.Error("Error processing message ", err)
+	for {
+		select {
+		case m := <-h.inChannel:
+			err := h.handleMessage(m)
+			if err == nil {
+				h.deleteMessage(m)
+			} else {
+				log.Error("Error processing message ", err)
+			}
+		case <-h.ctx.Done():
+			return
 		}
 	}
 }
@@ -52,7 +57,7 @@ func (h *handler) handleMessage(msg *sqs.Message) error {
 }
 
 func (h *handler) deleteMessage(msg *sqs.Message) error {
-	sqsContext := h.ctx.Value("sqs").(*SQSClient)
+	sqsContext := h.ctx.Value(contextKey).(*SQSClient)
 	_, err := sqsContext.client.DeleteMessage(&sqs.DeleteMessageInput{
 		QueueUrl:      sqsContext.QueueUrl.QueueUrl,
 		ReceiptHandle: msg.ReceiptHandle,

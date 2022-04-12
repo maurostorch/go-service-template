@@ -11,6 +11,12 @@ import (
 	"github.com/aws/aws-sdk-go/service/sqs"
 )
 
+type Key string
+
+const (
+	contextKey Key = "contextKey"
+)
+
 type Receiver interface {
 	Start() (context.Context, chan *sqs.Message)
 }
@@ -41,7 +47,7 @@ func NewReceiver(queueName string, parentCtx *context.Context) Receiver {
 	}
 	return &receiver{
 		client: sqsClient,
-		ctx: context.WithValue(*parentCtx, "sqs", &SQSClient{
+		ctx: context.WithValue(*parentCtx, contextKey, &SQSClient{
 			client:   sqsClient,
 			QueueUrl: queueUrl,
 		}),
@@ -57,7 +63,7 @@ func (r *receiver) Start() (context.Context, chan *sqs.Message) {
 func (r *receiver) receiveMessages(incoming chan *sqs.Message) {
 	for {
 		msg, err := r.client.ReceiveMessage(&sqs.ReceiveMessageInput{
-			QueueUrl:            r.ctx.Value("sqs").(*SQSClient).QueueUrl.QueueUrl,
+			QueueUrl:            r.ctx.Value(contextKey).(*SQSClient).QueueUrl.QueueUrl,
 			MaxNumberOfMessages: aws.Int64(*aws.Int64(10)),
 			WaitTimeSeconds:     aws.Int64(*aws.Int64(20)),
 		})
