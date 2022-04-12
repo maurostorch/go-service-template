@@ -1,4 +1,4 @@
-module github.com/Kooltra/go-service-template
+module github.com/maurostorch/go-service-template
 
 go 1.18
 
