@@ -3,12 +3,14 @@ package sqs
 import (
 	"context"
 
+	"github.com/maurostorch/go-service-template/model"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/aws/aws-sdk-go/service/sqs"
 )
 
 type MessageHandler interface {
-	Handle(msg *Message)
+	Handle(msg *model.Message)
 }
 type Handler interface {
 	Start(context.Context)
@@ -19,10 +21,6 @@ type handler struct {
 	queueUrl  *sqs.GetQueueUrlOutput
 	inChannel chan *sqs.Message
 	handler   *MessageHandler
-}
-
-type Message struct {
-	body string
 }
 
 func NewHandler(inChannel chan *sqs.Message, client *sqs.SQS, queueUrl *sqs.GetQueueUrlOutput, msgHandler *MessageHandler) Handler {
@@ -52,8 +50,8 @@ func (h *handler) Start(ctx context.Context) {
 
 func (h *handler) handleMessage(msg *sqs.Message) error {
 	log.Debug("Received message: ", msg)
-	(*h.handler).Handle(&Message{
-		body: *msg.Body,
+	(*h.handler).Handle(&model.Message{
+		Body: *msg.Body,
 	})
 	return nil
 }

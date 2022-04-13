@@ -3,7 +3,9 @@ package sqs
 import (
 	"context"
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -38,7 +40,8 @@ func NewReceiver(queueName string) Receiver {
 }
 
 func (r *Receiver) Start(ctx context.Context, handler MessageHandler, workers int) {
-	localCtx, cancel := context.WithCancel(ctx)
+	workersCtx, cancelWorkers := context.WithCancel(ctx)
+	receiverCtx, cancelReceiver := context.WithCancel(ctx)
 	incoming := make(chan *sqs.Message, workers)
 	var wg sync.WaitGroup
 	for i := 1; i < workers; i++ {
@@ -46,30 +49,49 @@ func (r *Receiver) Start(ctx context.Context, handler MessageHandler, workers in
 		go func(id int) {
 			defer wg.Done()
 			log.Debug("Starting ", id)
-			NewHandler(incoming, r.Client, r.QueueUrl, &handler).Start(localCtx)
+			NewHandler(incoming, r.Client, r.QueueUrl, &handler).Start(workersCtx)
 			log.Debug("Stopping ", id)
 		}(i)
 	}
-	r.receiveMessages(incoming)
-	cancel()
+	go func() {
+		defer func() {
+			cancelWorkers()
+			wg.Done()
+		}()
+		wg.Add(1)
+		r.receiveMessages(receiverCtx, incoming)
+	}()
+	signalCh := make(chan os.Signal, 1)
+	signal.Notify(signalCh, syscall.SIGTERM, syscall.SIGINT)
+	go func(signals chan os.Signal) {
+		s := <-signals
+		log.Info(s, " Signal received. Waiting receivers to finish...")
+		cancelReceiver()
+	}(signalCh)
 	wg.Wait()
 }
 
-func (r *Receiver) receiveMessages(incoming chan *sqs.Message) {
+func (r *Receiver) receiveMessages(ctx context.Context, incoming chan *sqs.Message) {
 	for {
-		msg, err := r.Client.ReceiveMessage(&sqs.ReceiveMessageInput{
-			QueueUrl:            r.QueueUrl.QueueUrl,
-			MaxNumberOfMessages: aws.Int64(*aws.Int64(10)),
-			WaitTimeSeconds:     aws.Int64(*aws.Int64(20)),
-		})
-
-		if err != nil {
-			log.Error("Error receiveing message ", err)
+		select {
+		case <-ctx.Done():
 			return
+		default:
+			msg, err := r.Client.ReceiveMessage(&sqs.ReceiveMessageInput{
+				QueueUrl:            r.QueueUrl.QueueUrl,
+				MaxNumberOfMessages: aws.Int64(10),
+				WaitTimeSeconds:     aws.Int64(10),
+			})
+
+			if err != nil {
+				log.Error("Error receiveing message ", err)
+				return
+			}
+
+			for _, message := range msg.Messages {
+				incoming <- message
+			}
 		}
 
-		for _, message := range msg.Messages {
-			incoming <- message
-		}
 	}
 }
