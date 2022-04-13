@@ -2,7 +2,7 @@
 
 # go-service-template
 
-This project is a service template written in Go
+This project is a K8S-ready service template written in Go with graceful shutdown
 
 ### Handlers
 - SQS
