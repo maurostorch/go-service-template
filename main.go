@@ -10,6 +10,10 @@ import (
 )
 
 func init() {
+	_, err := os.Create("/tmp/LIVE")
+	if err != nil {
+		os.Exit(1)
+	}
 	log.SetFormatter(&log.JSONFormatter{})
 	log.SetOutput(os.Stdout)
 	log.SetLevel(log.DebugLevel)
@@ -18,7 +22,7 @@ func init() {
 func main() {
 	ctx := context.Background()
 	queueName := os.Getenv("QUEUE_NAME")
-	receiver := sqs.NewReceiver(queueName)
+	sqs := sqs.NewReceiver(queueName)
 	log.Info("Connected to queue ", queueName)
-	receiver.Start(ctx, &handler.Handler{}, 10)
+	sqs.Start(ctx, &handler.Handler{}, 10)
 }

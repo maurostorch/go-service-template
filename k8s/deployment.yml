@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: go-service-template
+  labels:
+    app: go-service-template
+spec:
+  selector:
+    matchLabels:
+      service: go-service-template
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: go-service-template
+        service: go-service-template
+    spec:
+      containers:
+        - name: service
+          image: 'go-service-template:latest'
+          env:
+            - name: QUEUE_NAME
+              value: $QUEUE_NAME
+          livenessProbe:
+            exec:
+              command:
+                - cat /tmp/LIVE

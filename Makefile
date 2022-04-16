@@ -25,4 +25,10 @@ vet:
 lint:
 	golangci-lint run --enable-all
 
+pkg:
+	docker build -t go-service-template:latest .
+
+deploy:
+	envsubst < k8s/deployment.yml | kubectl apply -f -
+
 all: dep vet test test_coverage build
