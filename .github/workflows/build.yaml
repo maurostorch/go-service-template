@@ -9,4 +9,33 @@ jobs:
         go-version: 1.18.x
     - uses: actions/checkout@v3
     - run: make all
-    - run: docker build -t app:1 .
+    - name: Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: executable
+          path: app
+  pack-push:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Download a single artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: executable
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v2
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+    - name: Login to DockerHub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKER_HUB_USERNAME }}
+        password: ${{ secrets.DOCKER_HUB_TOKEN }}
+    - name: Build and push
+      uses: docker/build-push-action@v3
+      with:
+        push: true
+        tags: |
+          maurostorch/go-service-template:latest
+          maurostorch/go-service-template:${{ github.sha }}
